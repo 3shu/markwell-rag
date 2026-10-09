@@ -9,11 +9,13 @@ import random
 import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
+from typing import Any, TypeVar
 
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError, EventStreamError
 from dotenv import load_dotenv
+from pydantic import BaseModel, ValidationError
 
 load_dotenv()
 
@@ -43,6 +45,11 @@ ERRORES_REINTENTABLES = {
     "ModelNotReadyException",
 }
 
+# Nombre de la herramienta que el modelo debe usar para entregar la salida estructurada.
+HERRAMIENTA_SALIDA = "entregar_respuesta"
+
+T = TypeVar("T", bound=BaseModel)
+
 
 class BedrockError(Exception):
     """Error al invocar Bedrock que no se resolvió con reintentos."""
@@ -50,6 +57,10 @@ class BedrockError(Exception):
 
 class ModeloNoDisponibleError(BedrockError):
     """La cuenta no tiene acceso al modelo solicitado."""
+
+
+class SalidaInvalidaError(BedrockError):
+    """El modelo devolvió una salida que no cumple el esquema solicitado."""
 
 
 @dataclass
@@ -71,13 +82,18 @@ class ClienteBedrock:
         max_tokens: int = 800,
         temperature: float = 0.2,
         max_intentos: int = 4,
+        client: Any = None,
     ) -> None:
         self.model_id = model_id or os.environ["BEDROCK_MODEL_ID"]
         self.system_prompt = system_prompt
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.max_intentos = max_intentos
+        # Las pruebas inyectan un cliente simulado; en uso normal se crea el real.
+        self._client = client if client is not None else self._crear_cliente()
 
+    @staticmethod
+    def _crear_cliente() -> Any:
         session = boto3.Session(
             profile_name=os.environ["AWS_PROFILE"],
             region_name=os.environ["AWS_REGION"],
@@ -89,7 +105,7 @@ class ClienteBedrock:
             connect_timeout=5,
             read_timeout=60,
         )
-        self._client = session.client("bedrock-runtime", config=config)
+        return session.client("bedrock-runtime", config=config)
 
     def consultar(self, pregunta: str) -> Respuesta:
         """Envía la pregunta y devuelve la respuesta completa."""
@@ -131,6 +147,47 @@ class ClienteBedrock:
             raise BedrockError(f"Error durante el streaming: {e}") from e
 
         return self._registrar("".join(partes), usage, stop_reason, inicio)
+
+    def consultar_estructurado(
+        self, pregunta: str, esquema: type[T]
+    ) -> tuple[T, Respuesta]:
+        """Obliga al modelo a responder con el esquema indicado y valida el resultado."""
+        inicio = time.perf_counter()
+        peticion = self._peticion(pregunta)
+        peticion["toolConfig"] = {
+            "tools": [
+                {
+                    "toolSpec": {
+                        "name": HERRAMIENTA_SALIDA,
+                        "description": "Entrega la respuesta final al usuario junto con sus fuentes.",
+                        "inputSchema": {"json": esquema.model_json_schema()},
+                    }
+                }
+            ],
+            # Forzamos esta herramienta: el modelo no puede responder en texto libre.
+            "toolChoice": {"tool": {"name": HERRAMIENTA_SALIDA}},
+        }
+        r = self._con_reintentos(lambda: self._client.converse(**peticion))
+        datos = next(
+            (
+                b["toolUse"]["input"]
+                for b in r["output"]["message"]["content"]
+                if "toolUse" in b
+            ),
+            None,
+        )
+        # Registramos antes de validar: una salida inválida también consume tokens.
+        meta = self._registrar(
+            json.dumps(datos, ensure_ascii=False), r["usage"], r["stopReason"], inicio
+        )
+        if datos is None:
+            raise SalidaInvalidaError("El modelo no devolvió la salida estructurada")
+        try:
+            return esquema.model_validate(datos), meta
+        except ValidationError as e:
+            raise SalidaInvalidaError(
+                f"La salida no cumple {esquema.__name__}: {e}"
+            ) from e
 
     def _peticion(self, pregunta: str) -> dict:
         return {
