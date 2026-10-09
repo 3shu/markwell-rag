@@ -5,19 +5,22 @@ from __future__ import annotations
 import json
 import logging
 import os
-import random
 import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from typing import Any, TypeVar
 
-import boto3
-from botocore.config import Config
-from botocore.exceptions import ClientError, EventStreamError
-from dotenv import load_dotenv
+from botocore.exceptions import EventStreamError
 from pydantic import BaseModel, ValidationError
 
-load_dotenv()
+# Se reexportan BedrockError y ModeloNoDisponibleError para que el código existente
+# (pruebas y scripts) pueda seguir importándolos desde markwell_rag.llm.
+from markwell_rag.bedrock import (
+    BedrockError,
+    ModeloNoDisponibleError,
+    con_reintentos,
+    crear_cliente_runtime,
+)
 
 logger = logging.getLogger("markwell_rag.llm")
 
@@ -37,26 +40,10 @@ PRECIOS_POR_MILLON = {
     "us.anthropic.claude-haiku-4-5-20251001-v1:0": {"entrada": 1.00, "salida": 5.00},
 }
 
-# Errores transitorios: tiene sentido volver a intentar.
-ERRORES_REINTENTABLES = {
-    "ThrottlingException",
-    "ServiceUnavailableException",
-    "InternalServerException",
-    "ModelNotReadyException",
-}
-
 # Nombre de la herramienta que el modelo debe usar para entregar la salida estructurada.
 HERRAMIENTA_SALIDA = "entregar_respuesta"
 
 T = TypeVar("T", bound=BaseModel)
-
-
-class BedrockError(Exception):
-    """Error al invocar Bedrock que no se resolvió con reintentos."""
-
-
-class ModeloNoDisponibleError(BedrockError):
-    """La cuenta no tiene acceso al modelo solicitado."""
 
 
 class SalidaInvalidaError(BedrockError):
@@ -90,22 +77,7 @@ class ClienteBedrock:
         self.temperature = temperature
         self.max_intentos = max_intentos
         # Las pruebas inyectan un cliente simulado; en uso normal se crea el real.
-        self._client = client if client is not None else self._crear_cliente()
-
-    @staticmethod
-    def _crear_cliente() -> Any:
-        session = boto3.Session(
-            profile_name=os.environ["AWS_PROFILE"],
-            region_name=os.environ["AWS_REGION"],
-        )
-        # Desactivamos los reintentos internos de botocore para controlarlos
-        # nosotros y no reintentar dos veces el mismo error.
-        config = Config(
-            retries={"total_max_attempts": 1, "mode": "standard"},
-            connect_timeout=5,
-            read_timeout=60,
-        )
-        return session.client("bedrock-runtime", config=config)
+        self._client = client if client is not None else crear_cliente_runtime()
 
     def consultar(self, pregunta: str) -> Respuesta:
         """Envía la pregunta y devuelve la respuesta completa."""
@@ -201,34 +173,7 @@ class ClienteBedrock:
         }
 
     def _con_reintentos(self, operacion: Callable[[], dict]) -> dict:
-        """Ejecuta la operación con backoff exponencial y jitter completo."""
-        for intento in range(1, self.max_intentos + 1):
-            try:
-                return operacion()
-            except ClientError as e:
-                codigo = e.response["Error"]["Code"]
-                mensaje = e.response["Error"].get("Message", "")
-                if codigo == "AccessDeniedException":
-                    raise ModeloNoDisponibleError(
-                        f"Sin acceso a {self.model_id}: {mensaje}"
-                    ) from e
-                if codigo not in ERRORES_REINTENTABLES:
-                    raise BedrockError(f"{codigo}: {mensaje}") from e
-                if intento == self.max_intentos:
-                    raise BedrockError(
-                        f"{codigo} tras {intento} intentos: {mensaje}"
-                    ) from e
-
-                espera = random.uniform(0, min(20.0, 2 ** (intento - 1)))
-                logger.warning(
-                    "%s en intento %d/%d; nuevo intento en %.2f s",
-                    codigo,
-                    intento,
-                    self.max_intentos,
-                    espera,
-                )
-                time.sleep(espera)
-        raise AssertionError("inalcanzable")
+        return con_reintentos(operacion, self.model_id, self.max_intentos)
 
     def _registrar(
         self, texto: str, usage: dict, stop_reason: str | None, inicio: float
