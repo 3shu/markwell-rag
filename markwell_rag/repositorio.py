@@ -36,7 +36,9 @@ class Resultado:
     distancia: float
 
 
-def obtener_o_crear_documento(conn: psycopg.Connection, entidad: str, codigo: str, titulo: str) -> int:
+def obtener_o_crear_documento(
+    conn: psycopg.Connection, entidad: str, codigo: str, titulo: str
+) -> int:
     """Devuelve el id del documento; lo crea si no existe."""
     fila = conn.execute(
         """
@@ -62,8 +64,7 @@ def registrar_version(
 ) -> int:
     """Inserta una versión con todos sus fragmentos y devuelve el id de la versión."""
     # El hash permitirá a la ingesta detectar si un documento cambió sin comparar textos.
-    contenido = "\n".join(f.texto for f in fragmentos)
-    hash_contenido = hashlib.sha256(contenido.encode("utf-8")).hexdigest()
+    hash_contenido = calcular_hash([f.texto for f in fragmentos])
 
     version_id = conn.execute(
         """
@@ -72,7 +73,14 @@ def registrar_version(
         VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING id
         """,
-        (documento_id, numero, vigente_desde, vigente_hasta, fuente_url, hash_contenido),
+        (
+            documento_id,
+            numero,
+            vigente_desde,
+            vigente_hasta,
+            fuente_url,
+            hash_contenido,
+        ),
     ).fetchone()[0]
 
     with conn.cursor() as cur:
@@ -83,7 +91,15 @@ def registrar_version(
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
             [
-                (version_id, orden, f.articulo, f.texto, f.tokens, modelo_embedding, Vector(f.vector))
+                (
+                    version_id,
+                    orden,
+                    f.articulo,
+                    f.texto,
+                    f.tokens,
+                    modelo_embedding,
+                    Vector(f.vector),
+                )
                 for orden, f in enumerate(fragmentos, start=1)
             ],
         )
@@ -115,3 +131,19 @@ def buscar(
         {"vector": Vector(vector), "modelo": modelo_embedding, "fecha": fecha, "k": k},
     ).fetchall()
     return [Resultado(*fila) for fila in filas]
+
+
+def calcular_hash(textos: list[str]) -> str:
+    """SHA-256 del contenido de una versión; es el mismo que guarda registrar_version."""
+    return hashlib.sha256("\n".join(textos).encode("utf-8")).hexdigest()
+
+
+def hash_de_version(
+    conn: psycopg.Connection, documento_id: int, numero: int
+) -> str | None:
+    """Devuelve el hash de una versión ya cargada, o None si no existe."""
+    fila = conn.execute(
+        "SELECT hash_contenido FROM version_documento WHERE documento_id = %s AND numero = %s",
+        (documento_id, numero),
+    ).fetchone()
+    return fila[0] if fila else None

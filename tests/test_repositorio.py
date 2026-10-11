@@ -53,7 +53,13 @@ def documento_id(conn):
 
 def test_ordena_por_distancia_coseno(conn, documento_id):
     registrar_version(
-        conn, documento_id, 1, date(2020, 1, 1), None, "https://example.com", MODELO,
+        conn,
+        documento_id,
+        1,
+        date(2020, 1, 1),
+        None,
+        "https://example.com",
+        MODELO,
         [fragmento("uno", 0), fragmento("dos", 1), fragmento("tres", 2)],
     )
 
@@ -66,35 +72,71 @@ def test_ordena_por_distancia_coseno(conn, documento_id):
 
 def test_filtra_por_vigencia(conn, documento_id):
     registrar_version(
-        conn, documento_id, 1, date(2020, 1, 1), date(2024, 1, 1), "https://example.com", MODELO,
+        conn,
+        documento_id,
+        1,
+        date(2020, 1, 1),
+        date(2024, 1, 1),
+        "https://example.com",
+        MODELO,
         [fragmento("versión 1", 0)],
     )
     registrar_version(
-        conn, documento_id, 2, date(2024, 1, 1), None, "https://example.com", MODELO,
+        conn,
+        documento_id,
+        2,
+        date(2024, 1, 1),
+        None,
+        "https://example.com",
+        MODELO,
         [fragmento("versión 2", 0)],
     )
 
-    assert [r.texto for r in buscar(conn, vector_base(0), MODELO, date(2023, 6, 1))] == ["versión 1"]
-    assert [r.texto for r in buscar(conn, vector_base(0), MODELO, date(2025, 6, 1))] == ["versión 2"]
+    assert [
+        r.texto for r in buscar(conn, vector_base(0), MODELO, date(2023, 6, 1))
+    ] == ["versión 1"]
+    assert [
+        r.texto for r in buscar(conn, vector_base(0), MODELO, date(2025, 6, 1))
+    ] == ["versión 2"]
     # vigente_hasta es exclusiva: el 1 de enero de 2024 ya rige la versión 2.
-    assert [r.texto for r in buscar(conn, vector_base(0), MODELO, date(2024, 1, 1))] == ["versión 2"]
+    assert [
+        r.texto for r in buscar(conn, vector_base(0), MODELO, date(2024, 1, 1))
+    ] == ["versión 2"]
 
 
 def test_rechaza_vigencias_traslapadas(conn, documento_id):
     registrar_version(
-        conn, documento_id, 1, date(2020, 1, 1), None, "https://example.com", MODELO,
+        conn,
+        documento_id,
+        1,
+        date(2020, 1, 1),
+        None,
+        "https://example.com",
+        MODELO,
         [fragmento("versión 1", 0)],
     )
     with pytest.raises(psycopg.errors.ExclusionViolation):
         registrar_version(
-            conn, documento_id, 2, date(2024, 1, 1), None, "https://example.com", MODELO,
+            conn,
+            documento_id,
+            2,
+            date(2024, 1, 1),
+            None,
+            "https://example.com",
+            MODELO,
             [fragmento("versión 2", 0)],
         )
 
 
 def test_ignora_vectores_de_otro_modelo(conn, documento_id):
     registrar_version(
-        conn, documento_id, 1, date(2020, 1, 1), None, "https://example.com", "otro-modelo",
+        conn,
+        documento_id,
+        1,
+        date(2020, 1, 1),
+        None,
+        "https://example.com",
+        "otro-modelo",
         [fragmento("uno", 0)],
     )
     assert buscar(conn, vector_base(0), MODELO, date(2026, 1, 1)) == []
@@ -103,6 +145,29 @@ def test_ignora_vectores_de_otro_modelo(conn, documento_id):
 def test_rechaza_dimensiones_incorrectas(conn, documento_id):
     with pytest.raises(psycopg.errors.DataException, match="1024"):
         registrar_version(
-            conn, documento_id, 1, date(2020, 1, 1), None, "https://example.com", MODELO,
+            conn,
+            documento_id,
+            1,
+            date(2020, 1, 1),
+            None,
+            "https://example.com",
+            MODELO,
             [FragmentoNuevo(texto="corto", vector=[1.0, 0.0], tokens=1)],
         )
+
+
+def test_hash_de_version(conn, documento_id):
+    from markwell_rag.repositorio import calcular_hash, hash_de_version
+
+    assert hash_de_version(conn, documento_id, 1) is None
+    registrar_version(
+        conn,
+        documento_id,
+        1,
+        date(2020, 1, 1),
+        None,
+        "https://example.com",
+        MODELO,
+        [fragmento("uno", 0), fragmento("dos", 1)],
+    )
+    assert hash_de_version(conn, documento_id, 1) == calcular_hash(["uno", "dos"])
