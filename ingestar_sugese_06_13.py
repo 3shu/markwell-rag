@@ -29,7 +29,7 @@ RUTA = Path("data/fuentes/sugese-06-13.docx")
 NUMERO_VERSION = 1
 # Fecha desde la que rige el texto descargado. Se completa en el paso 4 leyendo
 # el encabezado del documento. Mientras sea None, el script no carga nada.
-VIGENTE_DESDE: date | None = None
+VIGENTE_DESDE: date | None = date(2020, 9, 1)
 
 PRECIO_TITAN_POR_MILLON = 0.02  # USD; el mismo valor que usa embeddings.py
 
