@@ -37,8 +37,11 @@ class ModeloNoDisponibleError(BedrockError):
     """La cuenta no tiene acceso al modelo solicitado."""
 
 
-def crear_cliente_runtime() -> Any:
-    """Crea el cliente bedrock-runtime con el perfil y la región del .env."""
+def crear_cliente_runtime(servicio: str = "bedrock-runtime") -> Any:
+    """Crea un cliente de Bedrock con el perfil y la región del .env.
+
+    servicio: "bedrock-runtime" (Converse, InvokeModel) o "bedrock-agent-runtime" (Rerank).
+    """
     session = boto3.Session(
         profile_name=os.environ["AWS_PROFILE"],
         region_name=os.environ["AWS_REGION"],
@@ -50,7 +53,7 @@ def crear_cliente_runtime() -> Any:
         connect_timeout=5,
         read_timeout=60,
     )
-    return session.client("bedrock-runtime", config=config)
+    return session.client(servicio, config=config)
 
 
 def con_reintentos(operacion: Callable[[], R], model_id: str, max_intentos: int) -> R:
