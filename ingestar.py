@@ -56,7 +56,7 @@ CATALOGO = {
                 "reglamento-comercializacion-seguros.docx"
             ),
             ruta=Path("data/fuentes/sugese-03-10.docx"),
-            vigente_desde=date(2024, 5, 22),
+            vigente_desde=date(2021, 10, 27),  # reforma 7: sesión 1694-2021, La Gaceta 207, Alcance 218; se asume que rige desde su publicación,
         ),
     ]
 }
