@@ -158,3 +158,28 @@ def validar(articulos: list[Articulo]) -> list[str]:
                 f"Salto en la numeración: Art. {anterior} seguido de Art. {siguiente}"
             )
     return avisos
+
+
+# "DEROGADO: Mediante artículo 11...", "Derogado por...", "(Así derogado...)".
+# También aparece cuando solo se derogó un inciso: por eso se usa para informar,
+# no para excluir. Decidir si el artículo completo está derogado requiere leerlo.
+PATRON_DEROGACION = re.compile(r"\bderogad[oa]s?\b", re.IGNORECASE)
+
+
+def menciones_de_derogacion(articulos: list[Articulo]) -> list[str]:
+    """Etiquetas de los artículos cuyo texto menciona una derogación."""
+    return [a.etiqueta for a in articulos if PATRON_DEROGACION.search(a.texto)]
+
+
+def excluir_derogados(articulos: list[Articulo], derogados: set[str] | frozenset[str]) -> list[Articulo]:
+    """Quita los artículos que una persona confirmó como derogados leyendo el texto.
+
+    El texto consolidado conserva el número y el contenido de un artículo
+    derogado, con una nota al final. Si se carga, la búsqueda lo devuelve como
+    vigente. Lanza ValueError si alguna etiqueta no existe en el documento, para
+    que un error de escritura en el catálogo no deje un derogado cargado sin aviso.
+    """
+    faltan = set(derogados) - {a.etiqueta for a in articulos}
+    if faltan:
+        raise ValueError(f"No existen en el documento: {sorted(faltan)}")
+    return [a for a in articulos if a.etiqueta not in derogados]

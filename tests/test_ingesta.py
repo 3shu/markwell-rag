@@ -3,13 +3,16 @@
 import io
 import zipfile
 
+import pytest
 from docx import Document
 
 from markwell_rag.ingesta import (
     MAX_CARACTERES_RECOMENDADO,
     Articulo,
     dividir_por_articulo,
+    excluir_derogados,
     extraer_parrafos_docx,
+    menciones_de_derogacion,
     parrafos_del_cuerpo,
     validar,
 )
@@ -157,3 +160,32 @@ def test_elige_el_documento_incrustado_con_articulos(tmp_path):
 
     assert nombre == "word/embeddings/Microsoft_Word_Document1.docx"
     assert parrafos == ["Artículo 1.Del objeto", "Artículo 2.Ámbito"]
+
+
+# Sesión 13: el Art. 20 del SUGESE 03-10 está derogado desde 2020, pero se cargó como vigente.
+ARTICULOS_CON_DEROGACION = [
+    Articulo("Art. 19", "Artículo 19. Agentes de seguros.\nTexto vigente."),
+    Articulo(
+        "Art. 20",
+        "Artículo 20.\tOperador de seguros autoexpedibles\nLos operadores se clasifican en exclusivos "
+        "y no exclusivos. DEROGADO: Mediante artículo 11 del acta de la sesión 1601-2020.",
+    ),
+    Articulo("Art. 21", "Artículo 21. Contenido mínimo.\na.- Primer requisito.\nb.- Derogado."),
+]
+
+
+def test_menciones_de_derogacion_informa_articulos_e_incisos():
+    # El Art. 21 solo tiene un inciso derogado: por eso la función informa y no excluye.
+    assert menciones_de_derogacion(ARTICULOS_CON_DEROGACION) == ["Art. 20", "Art. 21"]
+
+
+def test_excluir_derogados_quita_solo_los_confirmados():
+    vigentes = excluir_derogados(ARTICULOS_CON_DEROGACION, frozenset({"Art. 20"}))
+
+    assert [a.etiqueta for a in vigentes] == ["Art. 19", "Art. 21"]
+    assert excluir_derogados(ARTICULOS_CON_DEROGACION, frozenset()) == ARTICULOS_CON_DEROGACION
+
+
+def test_excluir_derogados_rechaza_una_etiqueta_inexistente():
+    with pytest.raises(ValueError, match="Art. 200"):
+        excluir_derogados(ARTICULOS_CON_DEROGACION, frozenset({"Art. 200"}))
