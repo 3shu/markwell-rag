@@ -141,8 +141,13 @@ def _normalizar(texto: str | None) -> str:
 
 
 def clave_articulo(articulo: str | None) -> str:
-    """"Art. 25", "Artículo 25" y "25" dan "25"; "Transitorio I" da "transitorio i"."""
-    return re.sub(r"^(articulo|art)\s+", "", _normalizar(articulo))
+    """"Art. 25", "Artículo 25" y "25" dan "25"; "Transitorio I" da "transitorio i".
+
+    Las citas se verifican a nivel de artículo: "Art. 3, inciso c)" y
+    "Art. 3, literal n" dan "3", porque el fragmento es el artículo completo.
+    """
+    clave = re.sub(r"^(articulo|art)\s+", "", _normalizar(articulo))
+    return re.split(r"\s(?:inciso|literal|numeral|parrafo)\b", clave)[0]
 
 
 def verificar_citas(respuesta: RespuestaRegulatoria, recuperados: list[Resultado]) -> list[Cita]:

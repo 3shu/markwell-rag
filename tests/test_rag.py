@@ -225,3 +225,17 @@ def test_sin_candidatos_no_llama_al_reranker():
 def test_candidatos_menor_que_k_es_un_error():
     with pytest.raises(ValueError):
         Asistente(EmbeddingsFalso(), LLMFalso(None), lambda *a: [], k=5, reordenador=ReordenadorFalso(), candidatos=3)
+
+
+def test_clave_articulo_ignora_incisos_y_literales():
+    # Sesión 12: el modelo citó "Art. 3, inciso c)" con el Art. 3 en el contexto y quedó como no verificada.
+    assert clave_articulo("Art. 3, inciso c)") == clave_articulo("Art. 3, literal n") == "3"
+    assert clave_articulo("Artículo 22, párrafo segundo") == "22"
+    assert clave_articulo("Anexo V") == "anexo v"  # un anexo no es el artículo 5
+    assert verificar_citas(
+        RespuestaRegulatoria(
+            respuesta="Definición.", sustentada=True,
+            fuentes=[Fuente(entidad="SUGESE", norma="SUGESE 06-13", articulo="Art. 3, inciso s")],
+        ),
+        [resultado("Art. 3")],
+    )[0].verificada

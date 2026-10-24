@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-from markwell_rag.rag import clave_articulo
+from markwell_rag.rag import RespuestaRAG, clave_articulo
 from markwell_rag.repositorio import Resultado
 
 
@@ -86,3 +86,65 @@ def mrr(posiciones: list[int | None]) -> float:
     if not posiciones:
         raise ValueError("No hay preguntas para medir")
     return sum(1 / p for p in posiciones if p is not None) / len(posiciones)
+
+
+@dataclass
+class Fidelidad:
+    """Lo que se puede medir en código de una respuesta del asistente, sin juez ni lectura humana."""
+
+    id: str
+    respondible: bool
+    sustentada: bool          # lo que declaró el modelo
+    citas: int
+    citas_verificadas: int    # citas cuya norma y artículo estaban en el contexto
+    cita_esperada: bool       # alguna cita verificada es uno de los artículos esperados
+    contexto_esperado: bool   # algún artículo esperado llegó al contexto del modelo
+
+    @property
+    def alertas(self) -> list[str]:
+        """Motivos para leer la respuesta a mano. Lista vacía: nada que revisar."""
+        alertas = []
+        if not self.respondible and self.sustentada:
+            alertas.append("control respondido como sustentado")
+        if self.citas_verificadas < self.citas:
+            alertas.append("citas no verificadas")
+        if self.respondible and not self.sustentada:
+            alertas.append(
+                "sin sustento con el artículo esperado en el contexto"
+                if self.contexto_esperado
+                else "sin sustento: el artículo esperado no llegó al contexto"
+            )
+        if self.respondible and self.sustentada and not self.cita_esperada:
+            alertas.append("no cita ningún artículo esperado")
+        return alertas
+
+
+def medir_fidelidad(pregunta: PreguntaEval, r: RespuestaRAG) -> Fidelidad:
+    verificadas = [c.resultado for c in r.citas if c.verificada]
+    return Fidelidad(
+        id=pregunta.id,
+        respondible=pregunta.respondible,
+        sustentada=r.respuesta.sustentada,
+        citas=len(r.citas),
+        citas_verificadas=len(verificadas),
+        cita_esperada=posicion_del_primer_acierto(pregunta.esperados, verificadas) is not None,
+        contexto_esperado=posicion_del_primer_acierto(pregunta.esperados, r.recuperados) is not None,
+    )
+
+
+def _proporcion(parte: int, total: int) -> float | None:
+    return parte / total if total else None
+
+
+def resumir_fidelidad(mediciones: list[Fidelidad]) -> dict[str, float | None]:
+    """Métricas agregadas; None cuando no hay casos para calcularla."""
+    respondibles = [m for m in mediciones if m.respondible]
+    controles = [m for m in mediciones if not m.respondible]
+    return {
+        "Sustentadas (respondibles)": _proporcion(sum(m.sustentada for m in respondibles), len(respondibles)),
+        "Citan un artículo esperado": _proporcion(sum(m.cita_esperada for m in respondibles), len(respondibles)),
+        "Controles con sustentada=false": _proporcion(sum(not m.sustentada for m in controles), len(controles)),
+        "Citas verificadas": _proporcion(
+            sum(m.citas_verificadas for m in mediciones), sum(m.citas for m in mediciones)
+        ),
+    }
