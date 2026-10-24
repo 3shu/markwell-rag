@@ -239,3 +239,9 @@ def test_clave_articulo_ignora_incisos_y_literales():
         ),
         [resultado("Art. 3")],
     )[0].verificada
+
+
+def test_clave_articulo_ignora_incisos_en_plural():
+    # Sesión 13: "Art. 3, literales p, q y r" quedó como no verificada con el Art. 3 en el contexto.
+    assert clave_articulo("Art. 3, literales p, q y r") == clave_articulo("Art. 3, incisos a y b") == "3"
+    assert clave_articulo("Art. 22, párrafos 1 y 2") == "22"

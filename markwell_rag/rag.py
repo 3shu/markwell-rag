@@ -147,7 +147,7 @@ def clave_articulo(articulo: str | None) -> str:
     "Art. 3, literal n" dan "3", porque el fragmento es el artículo completo.
     """
     clave = re.sub(r"^(articulo|art)\s+", "", _normalizar(articulo))
-    return re.split(r"\s(?:inciso|literal|numeral|parrafo)\b", clave)[0]
+    return re.split(r"\s(?:incisos?|literal(?:es)?|numerales?|parrafos?)\b", clave)[0]
 
 
 def verificar_citas(respuesta: RespuestaRegulatoria, recuperados: list[Resultado]) -> list[Cita]:
