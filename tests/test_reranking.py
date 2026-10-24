@@ -121,3 +121,12 @@ def test_access_denied_en_reranking(stubber, esperas):
         )
 
     assert esperas == []
+
+
+def test_costo_estimado_por_consulta(stubber):
+    cliente = ClienteReranking(model_id=MODELO, client=stubber.client)
+
+    assert cliente.costo_estimado(10) == pytest.approx(0.002)
+    # 101 documentos ya son dos consultas.
+    assert cliente.costo_estimado(101) == pytest.approx(0.004)
+    assert ClienteReranking(model_id="modelo-sin-precio", client=stubber.client).costo_estimado(10) is None

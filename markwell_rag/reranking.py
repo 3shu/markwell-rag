@@ -88,15 +88,22 @@ class ClienteReranking:
         self._registrar(len(candidatos), top_n, inicio)
         return reordenados
 
-    def _registrar(self, documentos: int, top_n: int, inicio: float) -> None:
+    def costo_estimado(self, documentos: int) -> float | None:
+        """Costo mínimo estimado de reordenar `documentos` candidatos; None si no hay precio conocido.
+
+        Mínimo: Bedrock divide los documentos muy largos y puede cobrar más.
+        """
         precio = PRECIOS_POR_MIL_CONSULTAS.get(self.model_id)
-        consultas = math.ceil(documentos / DOCUMENTOS_POR_CONSULTA)
+        if precio is None:
+            return None
+        return math.ceil(documentos / DOCUMENTOS_POR_CONSULTA) * precio / 1000
+
+    def _registrar(self, documentos: int, top_n: int, inicio: float) -> None:
         registro = {
             "modelo": self.model_id,
             "documentos": documentos,
             "top_n": top_n,
-            # Mínimo estimado: Bedrock divide los documentos muy largos y puede cobrar más.
-            "costo_usd": consultas * precio / 1000 if precio else None,
+            "costo_usd": self.costo_estimado(documentos),
             "latencia_ms": round((time.perf_counter() - inicio) * 1000),
         }
         logger.info(json.dumps(registro, ensure_ascii=False))
