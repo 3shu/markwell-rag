@@ -9,7 +9,7 @@
 {"id": "P09", "pregunta": "¿Responde la aseguradora frente al cliente por los actos de sus agentes de seguros?", "fecha": "2026-10-17", "esperados": [{"norma": "SUGESE 03-10", "articulo": "Art. 8"}, {"norma": "SUGESE 03-10", "articulo": "Art. 9"}], "nota": ""}
 {"id": "P10", "pregunta": "¿Cuál es el capital mínimo para constituir una aseguradora en Costa Rica?", "fecha": "2026-10-17", "esperados": [], "nota": "fuera de la normativa cargada; se espera sustentada=false"}
 {"id": "P11", "pregunta": "¿La aseguradora me puede cobrar por atender un reclamo?", "fecha": "2026-10-23", "esperados": [], "nota": "fuera de la normativa cargada; se espera sustentada=false"}
-{"id": "P12", "pregunta": "¿Qué debe contener la póliza que recibe el asegurado?", "fecha": "2026-10-23", "esperados": [], "nota": "fuera de la normativa cargada; se espera sustentada=false"}
+{"id": "P12", "pregunta": "¿Qué debe contener la póliza que recibe el asegurado?", "fecha": "2026-10-23", "esperados": [{"norma": "SUGESE 03-10", "articulo": "Art. 25"}], "nota": "sesión 12: era control; el Art. 25 del 03-10 la responde (etiqueta incompleta)"}
 {"id": "P13", "pregunta": "Si la aseguradora rechaza mi reclamo, ¿tiene que explicarme por qué?", "fecha": "2026-10-23", "esperados": [{"norma": "SUGESE 06-13", "articulo": "Art. 9"},{"norma": "SUGESE 06-13", "articulo": "Art. 21"}], "nota": ""}
 {"id": "P14", "pregunta": "¿La aseguradora debe llevar un registro de los reclamos que recibe?", "fecha": "2026-10-23", "esperados": [{"norma": "SUGESE 06-13", "articulo": "Art. 6"},{"norma": "SUGESE 06-13", "articulo": "Art. 16"}], "nota": ""}
 {"id": "P15", "pregunta": "¿Puede un banco vender seguros?", "fecha": "2026-10-23", "esperados": [], "nota": "fuera de la normativa cargada; se espera sustentada=false"}
@@ -18,3 +18,13 @@
 {"id": "P18", "pregunta": "¿Un agente de seguros puede trabajar para varias aseguradoras a la vez?", "fecha": "2026-10-23", "esperados": [{"norma": "SUGESE 03-10", "articulo": "Art. 10"},{"norma": "SUGESE 03-10", "articulo": "Art. 8"}], "nota": ""}
 {"id": "P19", "pregunta": "¿Qué reglas aplican cuando un seguro se vende por internet o por teléfono?", "fecha": "2026-10-23", "esperados": [{"norma": "SUGESE 03-10", "articulo": "Art. 33"},{"norma": "SUGESE 03-10", "articulo": "Art. 31"}], "nota": ""}
 {"id": "P20", "pregunta": "¿Cuánto cuesta el seguro obligatorio de automóviles?", "fecha": "2026-10-23", "esperados": [], "nota": "control: fuera de la normativa cargada"}
+{"id": "P21", "pregunta": "¿Qué información tengo que dar para presentar un reclamo ante la aseguradora?", "fecha": "2026-10-24", "esperados": [], "nota": "probable 06-13"}
+{"id": "P22", "pregunta": "¿Puedo presentar un reclamo por correo electrónico o tengo que ir a una oficina?", "fecha": "2026-10-24", "esperados": [], "nota": "probable 06-13"}
+{"id": "P23", "pregunta": "¿Cuánto tiempo debe conservar la aseguradora los documentos de un reclamo?", "fecha": "2026-10-24", "esperados": [], "nota": "probable 06-13"}
+{"id": "P24", "pregunta": "¿La aseguradora tiene que informar a SUGESE sobre los reclamos que recibe?", "fecha": "2026-10-24", "esperados": [], "nota": "probable 06-13"}
+{"id": "P25", "pregunta": "¿Qué es un operador de seguros autoexpedibles?", "fecha": "2026-10-24", "esperados": [], "nota": "probable 03-10"}
+{"id": "P26", "pregunta": "¿Puede un agente de seguros cobrar la prima en nombre de la aseguradora?", "fecha": "2026-10-24", "esperados": [], "nota": "probable 03-10"}
+{"id": "P27", "pregunta": "¿Qué responsabilidad tiene la aseguradora cuando vende seguros por medio de un comercio o una tienda?", "fecha": "2026-10-24", "esperados": [], "nota": "probable 03-10"}
+{"id": "P28", "pregunta": "¿Una sociedad agencia de seguros puede representar a más de una aseguradora?", "fecha": "2026-10-24", "esperados": [], "nota": "probable 03-10"}
+{"id": "P29", "pregunta": "¿Qué multa puede imponer SUGESE a una aseguradora que no responde un reclamo a tiempo?", "fecha": "2026-10-24", "esperados": [], "nota": "control probable: las sanciones suelen estar en la ley, no en estos reglamentos; verificar"}
+{"id": "P30", "pregunta": "¿En qué plazo debe responder la aseguradora un reclamo del consumidor?", "fecha": "2019-06-01", "esperados": [], "nota": "control de vigencia: ninguna norma cargada estaba vigente en 2019"}
