@@ -7,6 +7,7 @@ import pytest
 from docx import Document
 
 from markwell_rag.ingesta import (
+    MARCA_PARRAFO_DEROGADO,
     MAX_CARACTERES_RECOMENDADO,
     Articulo,
     dividir_por_articulo,
@@ -14,6 +15,7 @@ from markwell_rag.ingesta import (
     extraer_parrafos_docx,
     menciones_de_derogacion,
     parrafos_del_cuerpo,
+    quitar_parrafos_derogados,
     validar,
 )
 
@@ -106,6 +108,20 @@ def test_reconoce_transitorios():
     assert etiquetas(division) == ["Art. 1", "Transitorio I", "Transitorio único"]
 
 
+def test_el_anexo_no_queda_pegado_al_ultimo_transitorio():
+    division = dividir_por_articulo(
+        [
+            "Transitorio III. Plazo de seis meses.",
+            "ANEXO I",
+            "MODELO DE LEYENDA",
+            "Según el anexo I, el agente debe informar.",
+        ]
+    )
+
+    assert etiquetas(division) == ["Transitorio III", "Anexo I"]
+    assert "MODELO DE LEYENDA" in division.articulos[1].texto
+
+
 def test_validar_informa_saltos_repetidos_y_largos():
     articulos = [
         Articulo("Art. 1", "uno"),
@@ -189,3 +205,39 @@ def test_excluir_derogados_quita_solo_los_confirmados():
 def test_excluir_derogados_rechaza_una_etiqueta_inexistente():
     with pytest.raises(ValueError, match="Art. 200"):
         excluir_derogados(ARTICULOS_CON_DEROGACION, frozenset({"Art. 200"}))
+
+# Sesión 14: el inciso n del Art. 3 del 03-10 está derogado, pero el resto del artículo rige.
+ARTICULO_CON_INCISO_DEROGADO = Articulo(
+    "Art. 3",
+    "Artículo 3. Definiciones\nm) Intermediario: texto vigente.\nn) Operador de seguros autoexpedibles: "
+    "persona que vende seguros autoexpedibles.\nDEROGADO: Mediante artículo 11 del acta de la sesión 1601-2020.\n"
+    "o) Póliza: texto vigente.",
+)
+
+
+def test_quitar_parrafos_derogados_deja_una_sola_marca():
+    articulos = [ARTICULOS_CON_DEROGACION[0], ARTICULO_CON_INCISO_DEROGADO]
+
+    resultado = quitar_parrafos_derogados(articulos, {"Art. 3": frozenset({3, 4})})
+
+    assert resultado[0] == articulos[0]
+    assert resultado[1].texto.split("\n") == [
+        "Artículo 3. Definiciones",
+        "m) Intermediario: texto vigente.",
+        MARCA_PARRAFO_DEROGADO,
+        "o) Póliza: texto vigente.",
+    ]
+    assert quitar_parrafos_derogados(articulos, {}) == articulos
+
+
+def test_quitar_parrafos_derogados_rechaza_numeros_fuera_del_articulo():
+    with pytest.raises(ValueError, match=r"tiene 5 párrafos"):
+        quitar_parrafos_derogados([ARTICULO_CON_INCISO_DEROGADO], {"Art. 3": frozenset({1})})
+    with pytest.raises(ValueError, match=r"No existen en el documento: \['Art. 30'\]"):
+        quitar_parrafos_derogados([ARTICULO_CON_INCISO_DEROGADO], {"Art. 30": frozenset({3})})
+
+
+def test_quitar_parrafos_derogados_exige_una_mencion_de_derogacion():
+    # El párrafo 2 es el inciso m, vigente: un número mal escrito no debe borrarlo.
+    with pytest.raises(ValueError, match="ninguno de los párrafos"):
+        quitar_parrafos_derogados([ARTICULO_CON_INCISO_DEROGADO], {"Art. 3": frozenset({2})})

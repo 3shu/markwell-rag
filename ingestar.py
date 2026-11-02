@@ -9,7 +9,7 @@ Uso:
 import argparse
 import logging
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
@@ -18,6 +18,7 @@ from markwell_rag.ingesta import (
     excluir_derogados,
     menciones_de_derogacion,
     parrafos_del_cuerpo,
+    quitar_parrafos_derogados,
     validar,
 )
 
@@ -41,6 +42,9 @@ class Norma:
     # Artículos derogados por completo que siguen en el texto consolidado. Los
     # confirma una persona leyendo el artículo; no se cargan.
     derogados: frozenset[str] = frozenset()
+    # Párrafos derogados dentro de artículos que siguen vigentes, numerados desde 1
+    # como los muestra la consulta de la sesión 14. Se reemplazan por una marca.
+    parrafos_derogados: dict[str, frozenset[int]] = field(default_factory=dict)
 
 
 CATALOGO = {
@@ -56,6 +60,8 @@ CATALOGO = {
             ),
             ruta=Path("data/fuentes/sugese-06-13.docx"),
             vigente_desde=date(2020, 9, 1),
+            # Art. 14, inciso f derogado; confirmado en la sesión 14.
+            parrafos_derogados={"Art. 14": frozenset({9})},
         ),
         Norma(
             entidad="SUGESE",
@@ -68,7 +74,10 @@ CATALOGO = {
             ruta=Path("data/fuentes/sugese-03-10.docx"),
             vigente_desde=date(2021, 10, 27),
             # "DEROGADO: Mediante artículo 11 del acta de la sesión 1601-2020" (sesión 12).
-            derogados=frozenset({"Art. 20", "Art. 21", "Art. 23", "Art. 28"}),
+            # Anexos III y IV: derogados por las sesiones 1601-2020 y 1694-2021.
+            derogados=frozenset({"Art. 20", "Art. 21", "Art. 23", "Art. 28", "Anexo III", "Anexo IV"}),
+            # Párrafos con nota de derogación (sesión 1601-2020 y 1694-2021), confirmados en la sesión 14.
+            parrafos_derogados={"Art. 3": frozenset({16}), "Art. 27": frozenset({13})},
         ),
     ]
 }
@@ -96,12 +105,15 @@ def main() -> None:
         sys.exit("No se encontró ningún artículo. Revisa el formato del documento.")
     try:
         articulos = excluir_derogados(division.articulos, norma.derogados)
+        articulos = quitar_parrafos_derogados(articulos, norma.parrafos_derogados)
     except ValueError as e:
-        sys.exit(f"Revisa 'derogados' de {norma.codigo} en CATALOGO. {e}")
+        sys.exit(f"Revisa 'derogados' y 'parrafos_derogados' de {norma.codigo} en CATALOGO. {e}")
 
     largo = max(articulos, key=lambda a: len(a.texto))
     print(f"Párrafos de preámbulo (no se cargan): {len(division.preambulo)}")
     print(f"Fragmentos: {len(articulos)} (derogados excluidos: {sorted(norma.derogados) or 'ninguno'})")
+    quitados = {k: sorted(v) for k, v in norma.parrafos_derogados.items()}
+    print(f"Párrafos derogados reemplazados por una marca: {quitados or 'ninguno'}")
     print(f"Primeros: {[a.etiqueta for a in articulos[:3]]}")
     print(f"Últimos:  {[a.etiqueta for a in articulos[-3:]]}")
     print(f"Más largo: {largo.etiqueta} ({len(largo.texto)} caracteres)")
@@ -109,7 +121,12 @@ def main() -> None:
     # validar recibe la división completa: un derogado excluido no es un salto en la numeración.
     avisos = validar(division.articulos)
     for etiqueta in menciones_de_derogacion(division.articulos):
-        estado = "excluido" if etiqueta in norma.derogados else "se carga: confirma que solo es un inciso o una referencia"
+        if etiqueta in norma.derogados:
+            estado = "excluido"
+        elif etiqueta in norma.parrafos_derogados:
+            estado = f"se quitan los párrafos {sorted(norma.parrafos_derogados[etiqueta])}"
+        else:
+            estado = "se carga: confirma que solo es un inciso o una referencia"
         avisos.append(f"Menciona una derogación: {etiqueta} ({estado})")
     print(f"Avisos ({len(avisos)}):")
     for aviso in avisos:

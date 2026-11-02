@@ -24,6 +24,9 @@ PATRON_ARTICULO = re.compile(
 PATRON_TRANSITORIO = re.compile(
     r"^\s*transitorio\s+(único|unico|[IVXLC]+|\d+)\b", re.IGNORECASE
 )
+# "ANEXO I", "Anexo 2", "Anexo único": sin esto, el anexo queda pegado al
+# último artículo o transitorio.
+PATRON_ANEXO = re.compile(r"^\s*anexo\s+(único|unico|[IVXLC]+|\d+)\b", re.IGNORECASE)
 # "CAPÍTULO II", "Sección III", "TÍTULO I": encabezados de estructura, no son
 # contenido de ningún artículo.
 PATRON_ESTRUCTURA = re.compile(
@@ -81,7 +84,7 @@ def parrafos_del_cuerpo(ruta: Path) -> tuple[str, list[str]]:
 
 
 def etiqueta_de(parrafo: str) -> str | None:
-    """Si el párrafo abre un artículo o un transitorio, devuelve su etiqueta."""
+    """Si el párrafo abre un artículo, un transitorio o un anexo, devuelve su etiqueta."""
     if m := PATRON_ARTICULO.match(parrafo):
         numero, sufijo = m.group(1), m.group(2)
         return f"Art. {numero}" + (f" {sufijo.lower()}" if sufijo else "")
@@ -92,6 +95,9 @@ def etiqueta_de(parrafo: str) -> str | None:
             if valor.lower() in ("único", "unico")
             else f"Transitorio {valor.upper()}"
         )
+    if m := PATRON_ANEXO.match(parrafo):
+        valor = m.group(1)
+        return "Anexo único" if valor.lower() in ("único", "unico") else f"Anexo {valor.upper()}"
     return None
 
 
@@ -183,3 +189,46 @@ def excluir_derogados(articulos: list[Articulo], derogados: set[str] | frozenset
     if faltan:
         raise ValueError(f"No existen en el documento: {sorted(faltan)}")
     return [a for a in articulos if a.etiqueta not in derogados]
+
+# Reemplaza los párrafos derogados dentro de un artículo vigente. Dice "derogado"
+# a propósito: si alguien pregunta por esa figura, el modelo ve que existió y ya
+# no rige, en lugar de un hueco en la numeración de los incisos.
+MARCA_PARRAFO_DEROGADO = "[Párrafo derogado: su texto no se carga]"
+
+
+def quitar_parrafos_derogados(
+    articulos: list[Articulo], parrafos: dict[str, frozenset[int]]
+) -> list[Articulo]:
+    """Reemplaza por una marca los párrafos que una persona confirmó como derogados.
+
+    `parrafos` asocia la etiqueta de un artículo vigente con los números de sus
+    párrafos derogados, contando desde 1 (el párrafo 1 es el encabezado del
+    artículo y no se puede quitar). Los párrafos seguidos se reemplazan por una
+    sola marca. Lanza ValueError si una etiqueta no existe, si un número está
+    fuera del artículo o si ninguno de los párrafos quitados menciona una
+    derogación: así un número mal escrito no borra texto vigente sin aviso.
+    """
+    faltan = set(parrafos) - {a.etiqueta for a in articulos}
+    if faltan:
+        raise ValueError(f"No existen en el documento: {sorted(faltan)}")
+
+    resultado = []
+    for a in articulos:
+        quitar = parrafos.get(a.etiqueta)
+        if not quitar:
+            resultado.append(a)
+            continue
+        lineas = a.texto.split("\n")
+        fuera = sorted(n for n in quitar if not 2 <= n <= len(lineas))
+        if fuera:
+            raise ValueError(f"{a.etiqueta} tiene {len(lineas)} párrafos; no se pueden quitar {fuera}")
+        if not any(PATRON_DEROGACION.search(lineas[n - 1]) for n in quitar):
+            raise ValueError(f"{a.etiqueta}: ninguno de los párrafos {sorted(quitar)} menciona una derogación")
+        nuevas: list[str] = []
+        for numero, linea in enumerate(lineas, start=1):
+            if numero not in quitar:
+                nuevas.append(linea)
+            elif not nuevas or nuevas[-1] != MARCA_PARRAFO_DEROGADO:
+                nuevas.append(MARCA_PARRAFO_DEROGADO)
+        resultado.append(Articulo(a.etiqueta, "\n".join(nuevas)))
+    return resultado

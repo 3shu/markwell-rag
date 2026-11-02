@@ -1,0 +1,7 @@
+{"id": "P01", "corrida": "fidelidad-20261024-134942.jsonl", "etiqueta": "fiel", "nota": "sesión 13: cada afirmación está en los artículos citados del 06-13"}
+{"id": "P08", "corrida": "fidelidad-20261024-134942.jsonl", "etiqueta": "parcial", "nota": "sesión 13: lo principal está respaldado, pero el segundo párrafo usa como vigente el Art. 3 inciso n del 03-10, derogado"}
+{"id": "P23", "corrida": "fidelidad-20261024-134942.jsonl", "etiqueta": "fiel", "nota": "sesión 13: control; responde correctamente que la normativa cargada no fija ese plazo (sustentada=true en código)"}
+{"id": "P25", "corrida": "fidelidad-20261024-134942.jsonl", "etiqueta": "no fiel", "nota": "sesión 13: presenta como normativa vigente la definición del Art. 3 inciso n del 03-10, derogada en la sesión 1601-2020"}
+{"id": "P26", "corrida": "fidelidad-20261024-134942.jsonl", "etiqueta": "parcial", "nota": "sesión 13: abre diciendo que los documentos no dicen si el agente puede cobrar la prima y luego cita Art. 9 inc. e y Anexo I, que sí lo dicen; se contradice (corregido: el Anexo I sí estaba cargado)"}
+{"id": "P08", "corrida": "fidelidad-20261102-165534.jsonl", "etiqueta": "fiel", "nota": "sesión 14: tras quitar el inciso n, dice que no hay definición y remite al 11-20"}
+{"id": "P25", "corrida": "fidelidad-20261102-165534.jsonl", "etiqueta": "fiel", "nota": "sesión 14: no usa el texto derogado; remite al 11-20"}
