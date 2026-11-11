@@ -79,6 +79,17 @@ CATALOGO = {
             # Párrafos con nota de derogación (sesión 1601-2020 y 1694-2021), confirmados en la sesión 14.
             parrafos_derogados={"Art. 3": frozenset({16}), "Art. 27": frozenset({13})},
         ),
+        Norma(
+            entidad="SUGESE",
+            codigo="SUGESE 11-20",
+            titulo="Reglamento sobre Inclusión y Acceso al Seguro",
+            fuente_url="https://www.sugese.fi.cr/content/dam/sugese/marco-legal/reglamento-mercado-seguros/sugese-11-20-reglamento-seguros-inclusivos.docx",
+            ruta=Path("data/fuentes/sugese-11-20.docx"),
+            # Última reforma: artículo 9 del acta de la sesión 1694-2021, publicada en La Gaceta 207,
+            # Alcance 218, el 27 oct 2021 (el control de cambios dice "Alcance 2018", errata). Sin fecha
+            # propia: rige desde su publicación, igual que la emisión y que el 03-10 (sesión 9).
+            vigente_desde=date(2021, 10, 27),
+        ),
     ]
 }
 
