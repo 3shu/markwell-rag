@@ -103,6 +103,11 @@ with db.conectar() as conn, salida.open("w", encoding="utf-8") as archivo:
             "fecha": p.fecha.isoformat(),
             "esperados": [f"{e.norma} {e.articulo}" for e in p.esperados],
             "recuperados": [f"{x.codigo} {x.articulo}" for x in r.recuperados],
+            # Sesión 15: el texto exacto que recibió el modelo. El juez lo lee de aquí, no de la base.
+            "contexto": [
+                {"norma": x.codigo, "articulo": x.articulo, "vigente_desde": x.vigente_desde.isoformat(), "texto": x.texto}
+                for x in r.recuperados
+            ],
             "sustentada": m.sustentada,
             "respuesta": r.respuesta.respuesta,
             "citas": [

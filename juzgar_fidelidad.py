@@ -85,7 +85,15 @@ desacuerdos = []
 costo = 0.0
 with db.conectar() as conn, salida.open("w", encoding="utf-8") as archivo:
     for r in respuestas:
-        fragmentos = fragmentos_de(conn, r["recuperados"], date.fromisoformat(r["fecha"]))
+        if "contexto" in r:
+            # Corridas desde la sesión 15: el texto que vio el modelo, aunque la base haya cambiado.
+            fragmentos = [
+                FragmentoJuzgado(c["norma"], c["articulo"], date.fromisoformat(c["vigente_desde"]), c["texto"])
+                for c in r["contexto"]
+            ]
+        else:
+            print(f"{r['id']}  aviso: corrida sin contexto guardado; el texto sale de la base actual")
+            fragmentos = fragmentos_de(conn, r["recuperados"], date.fromisoformat(r["fecha"]))
         try:
             evaluacion, meta = juzgar(evaluador, r["pregunta"], r["respuesta"], fragmentos)
         except SalidaInvalidaError as e:
