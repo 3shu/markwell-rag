@@ -145,8 +145,11 @@ def clave_articulo(articulo: str | None) -> str:
 
     Las citas se verifican a nivel de artículo: "Art. 3, inciso c)" y
     "Art. 3, literal n" dan "3", porque el fragmento es el artículo completo.
+    Por la misma razón "Art. 3.6" y "Art. 16.2" (numeración del SUGESE 11-20) dan "3" y "16".
     """
-    clave = re.sub(r"^(articulo|art)\s+", "", _normalizar(articulo))
+    # El subnúmero se quita antes de normalizar: después "3.6" sería "3 6" y no se distingue de otra cosa.
+    sin_subnumero = re.sub(r"(?<=\d)(?:\.\d+)+", "", articulo or "")
+    clave = re.sub(r"^(articulo|art)\s+", "", _normalizar(sin_subnumero))
     return re.split(r"\s(?:incisos?|literal(?:es)?|numerales?|parrafos?)\b", clave)[0]
 
 

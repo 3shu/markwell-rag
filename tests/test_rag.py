@@ -245,3 +245,18 @@ def test_clave_articulo_ignora_incisos_en_plural():
     # Sesión 13: "Art. 3, literales p, q y r" quedó como no verificada con el Art. 3 en el contexto.
     assert clave_articulo("Art. 3, literales p, q y r") == clave_articulo("Art. 3, incisos a y b") == "3"
     assert clave_articulo("Art. 22, párrafos 1 y 2") == "22"
+
+
+def test_clave_articulo_numeracion_con_punto():
+    # Sesión 16: el 11-20 numera sus incisos como 3.6 o 16.2. "Art. 3.6" quedó como no verificada con el Art. 3 en el contexto.
+    assert clave_articulo("Art. 3.6") == clave_articulo("Artículo 3.8.") == "3"
+    assert clave_articulo("Art. 16.2") == clave_articulo("Art. 16, inciso 16.2") == "16"
+    assert clave_articulo("Art. 3.") == "3"  # el punto final no es un subnúmero
+    assert clave_articulo("Art. 5 bis") == "5 bis"
+    assert verificar_citas(
+        RespuestaRegulatoria(
+            respuesta="Definición.", sustentada=True,
+            fuentes=[Fuente(entidad="SUGESE", norma="SUGESE 06-13", articulo="Art. 3.6")],
+        ),
+        [resultado("Art. 3")],
+    )[0].verificada
